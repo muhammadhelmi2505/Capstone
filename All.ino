@@ -1,368 +1,351 @@
-
-#include <Wire.h>
-#include <LCD.h>
-#include <LiquidCrystal_I2C.h>
-#define I2C_ADDR    0x27 //Add your address here.  Find it from I2C Scanner
-#define BACKLIGHT_PIN     3
-#define En_pin  2
-#define Rw_pin  1
-#define Rs_pin  0
-#define D4_pin  4
-#define D5_pin  5
-#define D6_pin  6
-#define D7_pin  7
-#define led_pin 13
-LiquidCrystal_I2C lcd(I2C_ADDR,En_pin,Rw_pin,Rs_pin,D4_pin,D5_pin,D6_pin,D7_pin);  
-int pr = 2;               // choose the input pin (for PIR sensor)  
-const int trigPin = 12;
-const int echoPin = 11;
-const int buzzer = 13;
-float duration;
-float distance;
-const int in1 = 4; //pin 5 of H-Bridge --> pin 4 of arduino
-const int in2 = 7; //pin 7 of H-Bridge --> pin 7 of arduino
-const int enA = 5; //pin 6 of H-Bridge (to control speed) --> pin 5 of arduino
-
-//right motor
-const int in3 = 8; //pin 10 of H-Bridge --> pin 8 of arduino
-const int in4 = 9; //pin 12 of H-Bridge -->pin 9 of arduino
-const int enB = 6; //pin 11 of H-Bridge (to control speed) --> pin 6 of arduino
-
-//left sensor
-const int sensor1 = 0;       //Analog input IR Sensor 1 -- Controls left motor
-const int sensor2 = 1;
-const int battery = 3;//set right sensor --> pin 1 arduino
-boolean forwardEnable = true;
-//declare variables to store analog value of IR sensors
-int nr1 = 0, nr2 = 0;
-int pirState = LOW;             // we start, assuming no motion detected
-int val = 0;  
-char data;
-void setup() {
-  // put your setup code here, to run once:
-Serial.begin(9600);
-
-pinMode(in1,OUTPUT);  //set left and right motor (with PWM) as output
-pinMode(in2,OUTPUT);
-pinMode(in3,OUTPUT);
-pinMode(in4,OUTPUT);
-pinMode(enA,OUTPUT);
-pinMode(enB,OUTPUT);
-pinMode(sensor1, INPUT);
-pinMode(sensor2, INPUT);
-pinMode(pr,INPUT);
-pinMode(trigPin, OUTPUT);
-pinMode(echoPin, INPUT);
-pinMode(buzzer,OUTPUT);
-pinMode(battery, INPUT)
-digitalWrite(enA,HIGH);   //set enA and enB at '1'
-digitalWrite(enB,HIGH);
-lcd.begin (16,2); //My LCD was 16x2
-lcd.setBacklightPin(BACKLIGHT_PIN,POSITIVE);
-lcd.setBacklight(HIGH);
-lcd.home (); // go home
-
-}
-
-void detectSensor(){
- nr1= analogRead( sensor1);
-nr2 = analogRead( sensor2);
- // Serial.println(nr2);
-  //Serial.println("\t");
-  //Serial.println(nr1);
-  //Serial.println("\n");
-
-  
-}
-void moveForward(){
-  Serial.println("Forward");
-  
-  digitalWrite(in1,HIGH);  //set left motor forward (clockwise)
-  digitalWrite(in2,LOW);
- // set the PWM of motors at 100
-  analogWrite(enA, 100);
-
-  digitalWrite(in3,HIGH);  //set right motor forward (clockwise)
-  digitalWrite(in4,LOW);
-  analogWrite(enB, 100);
-  
-}
-
-void moveReverse(){
-   Serial.println("Reverse");
-  
-  digitalWrite(in1,LOW);  //set left motor reverse (counter-clockwise)
-  digitalWrite(in2,HIGH);
-  analogWrite(enA, 100);  // set the PWM of motors at 100
-
-  digitalWrite(in3,LOW);  //set right motor reverse (counter-clockwise)
-  digitalWrite(in4,HIGH);
-  analogWrite(enB, 100);
-}
-
-void turnLeft(){
-   Serial.println("Turn Left");
-  
-  digitalWrite(in1,HIGH);  //set left motor static
-  digitalWrite(in2,HIGH);
-
-  digitalWrite(in3,LOW);  //set right motor forward (clockwise)
-  digitalWrite(in4,HIGH);
-  analogWrite(enB, 100);  //set pwm of right motor at 100
-}
-
-void turnRight(){
-   Serial.println("Turn Right");
-  
-  digitalWrite(in1,LOW);  //set left motor forward (clockwise)
-  digitalWrite(in2,HIGH);
-  analogWrite(enA, 500);  // set the PWM of motors at 200
-
-  digitalWrite(in3,HIGH);  //set right motor static
-  digitalWrite(in4,HIGH);
-}
-
-void Brake(){
-   Serial.println("Stop");
-  
-  digitalWrite(in1,HIGH);  //set left motor static
-  digitalWrite(in2,HIGH);
-
-  digitalWrite(in3,HIGH);  //set right motor static
-  digitalWrite(in4,HIGH);
-}
-void  air(){
- float x;
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration=pulseIn(echoPin, HIGH);
-  distance=(duration*0.034)/2;
-  Serial.print("Ditances: ");
-  lcd.setCursor(0,0);
-  lcd.print("Distances: ");
-  x=16.0-distance; 
-  Serial.print(x);
-  lcd.print(x);
-  delay(500);
-  Serial.print("\n");
-  if(x<4){
-   Serial.print("Please refill\n");
-  lcd.setCursor(0,1);
-   lcd.print("Please refill ");
-   delay(500);
-   lcd.clear();
-   Serial.print("A");
-  }
-  
-  else if((x<8)&&(x>4)){
-   Serial.print("Moderate level \n");
-     lcd.setCursor(0,1);
-   lcd.print("Moderate  ");
-   delay(500);
-   lcd.clear();
-  Serial.print("B");
-  
-  }
-
-  else if (x>8){
-   Serial.print("More water left\n");
-   lcd.setCursor(0,1);
-  lcd.print("Almost full ");
-  delay(500);
-  lcd.clear();
-    Serial.print("C");
-  }
+#include<Servo.h> 
+// -------------------------------------------- Pins declarations ------------------------------------------   
+// For the IR Sensor Output    
+int IRSen1 = A0;  // LEFT sensor    
+int IRSen2 = A1;  // Right sensor    
  
-}
-void pirSensor(){
-  val=digitalRead(pr);
-  if(val==HIGH){
-  tone(buzzer,1000); 
-  Brake();
-  delay(1000);
-  moveForward();
-  if(pirState==LOW)
-  pirState = HIGH;
-  }
-  else{
-    noTone(buzzer);
-    if(pirState==HIGH)
-    pirState =LOW; 
+//left motor 
+const int in1L = 12; //pin 5 of H-Bridge --> pin 12 of arduino 
+const int in2L = 13; //pin 7 of H-Bridge --> pin 13 of arduino 
+const int enAL = 11; //pin 6 of H-Bridge (to control speed) --> pin 11 of arduino 
+ 
+//right motor 
+const int in3R = 8; //pin 10 of H-Bridge --> pin 8 of arduino 
+const int in4R = 7; //pin 12 of H-Bridge -->pin 7 of arduino 
+const int enBR = 9; //pin 11 of H-Bridge (to control speed) --> pin 9 of arduino 
+ 
+
+////ultrasonic sensor obstacle & flower pot 
+const int echoPin = 4; 
+const int trigPin = 5; 
+ 
+//pump sensor 
+const int pump=6; 
+ 
+//bluetooth pin (0,1) 
+ 
+
+//PIR 
+int PIR= A3; 
+ 
+//servo 
+int servoPin = 10; 
+Servo servo; 
+
+ //buzzer 
+#define SPEAKERS A4 
+
+//------------------------------------------- --- Variables --- ---------------------------------------- 
+int threshold = 500;   
+float brg; 
+int IR1 = 0;    
+int IR2 = 0;    
+int sec=0;
+char data; 
+#define BEATTIME 500 //Length of the generated tone (msec) 
+#define BEATTIMES 500 
+
+//---------------------------------------------movement motor------------------------------------------- 
+void forward(){   
+ 
+digitalWrite(in1L,HIGH);    
+digitalWrite(in2L,LOW);    
+analogWrite(enAL,200);    
+digitalWrite(in3R,HIGH);    
+digitalWrite(in4R,LOW);    
+analogWrite(enBR,200);    
+}    
     
-  }
-  
-}
-void voltage{
-  int sensorValue = analogRead(battery); //read the A3 pin value
-  float voltage = sensorValue * (5.00 / 1023.00)*2; //convert the value to a true voltage.
-  lcd.setCursor(0,0);
-  lcd.print("voltage = ");
-  lcd.print(voltage); //print the voltage to LCD
-  lcd.print(" V");
-
-}
-
-void loop() {
-voltage();  
-air();
-pirSensor();
-detectSensor();
-
-  if(nr1>400||nr2>500){
-  digitalWrite(in1, HIGH);  //Stop Motor A
-  digitalWrite(in2, HIGH);
-   
-  digitalWrite(in3, HIGH);  //Set Motor B forward
-  digitalWrite(in4, HIGH);
-   forwardEnable = false;
- }
-
-//char data
-     if(Serial.available()>0){
-      data= Serial.read(); // reading the data received from the bluetooth module
-     }
-     detectSensor();
-      if(nr1>400||nr2>500){
-  digitalWrite(in1, HIGH);  //Stop Motor A
-  digitalWrite(in2, HIGH);
-   
-  digitalWrite(in3, HIGH);  //Set Motor B forward
-  digitalWrite(in4, HIGH);
-   forwardEnable = false;
- }
-      switch(data)
-      {
-        case 'A': 
-        forwardEnable = true;
-        Serial.println("Left");
-      moveForward();
-  
-        break; // when a is pressed on the app on your smart phone
-
-         case 'S': 
-        Serial.println("stop");
-        Brake();
-        break; // when a is pressed on the app on your smart phone
- case 'G': 
-  if(forwardEnable =false)
- ;
- else{
-        Serial.println("Go");
-  digitalWrite(in1, HIGH);  //Stop Motor A
-  digitalWrite(in2, LOW);
-   
-  digitalWrite(in3, HIGH);  //Set Motor B forward
-  digitalWrite(in4, LOW);
- }
-        break; // when a is pressed on the app on your smart phone
-
-
-         case 'R': 
-           forwardEnable = true;
-        Serial.println("REVERSE");
-  moveReverse();
+void backward(){    //move backward
  
-        break; // when a is pressed on the app on your smart phone
-        
-        case ('D'||'d'):
-        forwardEnable = true; 
-        Serial.println("Right");
-  digitalWrite(in1, HIGH);  //Set Motor A forward
-  digitalWrite(in2, HIGH);
-   
-  digitalWrite(in3, HIGH);  //Stop Motor B
-  digitalWrite(in4, LOW); 
+digitalWrite(in1L,LOW);    
+digitalWrite(in2L,HIGH);    
+analogWrite(enAL,200);    
+digitalWrite(in3R,LOW);    
+digitalWrite(in4R,HIGH);    
+analogWrite(enBR,200);     
+}    
+    
+void right(){ //turn right
+     
+digitalWrite(in1L,HIGH);    
+digitalWrite(in2L,LOW);    
+analogWrite(enAL,70);    
+digitalWrite(in3R,HIGH);    
+digitalWrite(in4R,LOW);    
+analogWrite(enBR,200);    
+}    
+    
+void left(){    //turn left
+   digitalWrite(in1L,HIGH);    
+  digitalWrite(in2L,LOW);    
+  analogWrite(enAL,200);    
+  digitalWrite(in3R,HIGH);    
+digitalWrite(in4R,LOW);    
+analogWrite(enBR,70);     
+}    
+  
+void stops(){    //stop robot
+digitalWrite(in1L,LOW);    
+digitalWrite(in2L,LOW);    
+analogWrite(enAL,0);    
+digitalWrite(in3R,LOW);    
+digitalWrite(in4R,LOW);    
+analogWrite(enBR,0);     
+}    
 
-        break; // when d is pressed on the app on your smart phone
-
-case ('O'): 
-
-do {
- if(Serial.available()>0){
-    data = Serial.read();
- }
-detectSensor();
-         
+ //----------------------------------------------waterpump------------------------------------ 
  
-if ((nr1 > 400) && (nr2 <600)&&(nr3 > 750)){ 
-   Brake();
-    delay(1000);
-    moveReverse();
-    delay(1500);
-    turnLeft();
-    delay(1500);
-    moveForward();
-      }
-
-  
-  
-else if ((nr1 <300) && (nr2 > 500)&&(nr3 > 750)){ 
-     Brake();
-    delay(1000);
-   moveReverse();
-    delay(1500);
-    turnRight();
-    delay(1500);
-    moveForward();
-      }
-  
-  
- else if ((nr1 >300)&& (nr2 > 500)&&(nr3 > 750)){ 
-   Brake();
-    delay(1000);
-   moveReverse();
-    delay(2000);
-    turnLeft();
-    delay(1000);
-    moveForward();
-   }
-   
-   
-else if ((nr1< 300)&& (nr2 < 500)&& (nr3<200)){ 
-   Brake();
-    delay(2000);
-  
-  
-  
-   moveReverse();
-    delay(2000);
-    turnLeft();
-    delay(1000);
-    moveForward();
-   }
-  else{
-    moveForward();
-  }
-}while(data == 'O');
-  break;
-  default: break;
+               
  
-        
+ void pumping(){                            //check for present of flowerpot in front, if theres flower pot move forward or else reverse and continue moving.
+  long duration, cm; 
+   digitalWrite(trigPin, LOW); 
+   delayMicroseconds(2); 
+   digitalWrite(trigPin, HIGH); 
+   delayMicroseconds(10); 
+   digitalWrite(trigPin, LOW); 
+   duration = pulseIn(echoPin, HIGH); 
+   cm = duration / 29/2; 
+   if (28<cm<31) 
+   { 
+    while(cm>5){                      ///move forward until it is near to the flower pot.
+      forward();
+      digitalWrite(trigPin, LOW); 
+   delayMicroseconds(2); 
+   digitalWrite(trigPin, HIGH); 
+   delayMicroseconds(10); 
+   digitalWrite(trigPin, LOW); 
+   duration = pulseIn(echoPin, HIGH); 
+   cm = duration / 29/2; 
+    
+    } 
+     
+    servo.write(45); // aim the hose to be slanted down to the flower pot.
+     delay(1000);     // Wait 1 second 
+  
+    digitalWrite(pump,HIGH); //pump water out
+    delay (3000);
+    digitalWrite(pump,LOW); //stop pumpingg water
+     servo.write(90);//// move the hose to original position
+
+       while(cm<30){ //move backward back into the patrol zone
+      backward();
+
+ 
+digitalWrite(trigPin, LOW); 
+   delayMicroseconds(2); 
+   digitalWrite(trigPin, HIGH); 
+   delayMicroseconds(10); 
+   digitalWrite(trigPin, LOW); 
+   duration = pulseIn(echoPin, HIGH); 
+   cm = duration / 29/2; 
+    
+    } 
+   } 
+ 
+ 
+} 
+ 
+ 
+
+ 
+//-----------------------------------------obstacle-------------------------------------- 
+void obstacle(){ // detect for any obstacle
+  long duration, cm; 
+   digitalWrite(trigPin, LOW); 
+   delayMicroseconds(2); 
+   digitalWrite(trigPin, HIGH); 
+   delayMicroseconds(10); 
+   digitalWrite(trigPin, LOW); 
+   duration = pulseIn(echoPin, HIGH); 
+   cm = duration / 29/2; 
+  brg=cm; 
+} 
+ 
+//------------------------------------motion-------------------------------------- 
+void motion(){ //detect any human motion
+  int val= analogRead(PIR); 
+ 
+ 
+   while(val>300){ //if there is any motion stop and turn on  buzzer.
+      stops(); 
+     alarm(); 
+      delay(1000); 
+      val= analogRead(PIR); 
+  } 
+} 
+//--------------------------------------------alarm------------------------------------ 
+void alarm(){ 
+                                                ///alarm sound
+ tone(SPEAKERS,1000,BEATTIME) ; // Do 
+delay(BEATTIMES) ; 
+tone(SPEAKERS,500,BEATTIME) ; // Re
+delay(BEATTIMES) ; 
+  } 
+ 
+//----------------check sensor----------------------------------- 
+void checksensor(){ 
+                                      //detect the black tape
+IR1 = analogRead(IRSen1);   
+   IR2 = analogRead(IRSen2);   
+} 
+ 
+//-----------------------------automode----------------------------------------------------- 
+void automode(){ //the robot in the auto mode
+  char q;   
+  for(;;)    
+  {   
+    if(sec=1){ //if security mode on detect any  human motion
+      motion(); 
+    } 
+     
+    
+     
+    checksensor(); 
+      
+    if(Serial.available())   //check whether there user want to stop, activate or deactivate security mode
+        {q=Serial.read();   
+          if(q=='s')   
+          {stops();   
+          break;}} 
+          if(q=='y') 
+          {sec=1; } 
+          if(q=='z') 
+          { sec=0;} 
+     else if ((IR1 > threshold) && (IR2 > threshold)) {   ///check whethe the robot has any obstacle and in patrol zone, else move forward
+       obstacle(); 
+  if(brg<10){ 
+    stops();  
+    delay(1000); 
+    while(brg<20){ 
+      backward();}
+      right();  
+     delay(500);
+  } 
+else{ 
+        forward(); 
+           
+          } }
+      
+    
+     else if ((IR1 < threshold) && (IR2 < threshold)) {    // detect black tape and flowerpot, else reverse
+     pumping(); 
+    backward();   
+    delay(5000);  
+    right();  
+    delay(1000);  
+  }     
+    
+else if ((IR1 > threshold) && (IR2 < threshold)) {    // detect black tape and flowerpot, else reverse
+  while((IR1 > threshold)){ 
+    left(); 
+      checksensor();  
+    } 
+    pumping(); 
+    backward();   
+    delay(500);  
+    right();  
+   delay(1000);   
+  }     
+    
+else if ((IR1 < threshold) && (IR2 > threshold)) {    // detect black tape and flowerpot, else reverse
+  while(IR2 > threshold){ 
+    right(); 
+     checksensor();  
+    } 
+    pumping(); 
+  
+ backward();   
+  
+    delay(500);  
+    left();  
+    delay(1000);  
+  }     
+else    
+      {   
+        stops();   
+      }   
+      }   
+} 
+ 
+//--------------------------setup---------------------------------------------------------------   
+void setup()    
+{   
+  pinMode(in1L, OUTPUT);    
+  pinMode(in2L, OUTPUT);    
+  pinMode(enAL, OUTPUT);    
+  pinMode(in3R, OUTPUT);    
+  pinMode(in4R, OUTPUT);    
+  pinMode(enBR, OUTPUT);  
+ 
+  pinMode(IRSen1, INPUT); 
+  pinMode(IRSen2, INPUT);  
+ 
+pinMode(pump,OUTPUT); 
+ 
+
+ 
+pinMode(trigPin, OUTPUT); 
+pinMode(echoPin, INPUT); 
+ 
+servo.attach(servoPin); 
+servo.write(90); // set the hose to be 0 degree as original position
    
    
+  // set the data rate for the SoftwareSerial port   
+  Serial.begin(9600);      
+}   
+   
+//----------------------------------------------------------------------loop----------------------------------   
+void loop()    
+{    
+
+stops();   //initally the robot stop
+
+if (Serial.available())    //wait for user input via bluetooth
+{   
+    data=Serial.read();   
+ if(data=='a')   
+ {   
+  automode(); 
+ }   
+    
+ else if(data=='b')   
+ {   
+  forward();    
+  delay(2000);   
+ }   
+   
+ else if(data=='c')   
+ {   
+  backward();    
+  delay(2000);   
+ }   
+   
+ else if(data=='d')   
+ {   
+  right();   
+  delay(1500);   
+ }   
+   
+ else if(data=='e')   
+ {   
+  left();   
+  delay(1500);   
+ }  
+ 
+  else if(data=='y'){ 
+    sec=1; 
+  } 
+ 
+  else if(data=='z'){ 
+    sec=0; 
+  } 
+   
+ else    
+ {   
+  stops;   
+ }   
+}   
 }
-}
-
-
-
-//if ((nr1>400) || (nr2>600)){  
-  //Brake();  //robot stop for 1s
-  //delay(2000);
-  
- // moveReverse();  //robot reverse for 0.5s
-  //delay(2000);
-  
-//Brake();  //robot stop for 1s
-  //delay(1000);
-  
- // turnRight();  //robot turns right 
-  //delay(2000);
-//}
-
-//else
-//moveForward();  //robot moves forward if sensor not detect
-//delay(3000);
-//}
